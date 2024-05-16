@@ -145,7 +145,7 @@ io.on("connection", (socket) => {
     }
 
     const session = sessions[sessionId];
-    console.log("sessionId", sessionId, "sessions", sessions);
+
     const currentPlayer = session.currentPlayer;
     if (socket.id !== currentPlayer) {
       return;
@@ -182,6 +182,12 @@ io.on("connection", (socket) => {
       console.error("Session not found");
       return;
     }
+
+    //  change first
+    sessions[sessionId].players = [
+      sessions[sessionId].players[1],
+      sessions[sessionId].players[0],
+    ];
 
     const session = sessions[sessionId];
     resetGame(sessionId, session.players[0]);
