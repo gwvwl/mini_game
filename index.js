@@ -41,9 +41,17 @@ app.get("/", (req, res) => {
   const sessionId = createSession(); // Создаем новую сессию
   res.redirect(`/join-session?sessionId=${sessionId}`); // Перенаправляем на страницу присоединения с идентификатором сессии
 });
+app.get("/not_found", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/not_found.html"));
+});
 
 // Маршрут для присоединения к существующей сессии
 app.get("/join-session", (req, res) => {
+  const sessionId = req.query.sessionId;
+  if (!sessions[sessionId]) {
+    // Если сессия не найдена, редиректим на страницу /not_found
+    return res.redirect("/not_found");
+  }
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
