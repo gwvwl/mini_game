@@ -87,12 +87,11 @@ io.on("connection", (socket) => {
   }
 
   if (players.length === 2) {
-    const randomIndex = Math.floor(Math.random() * 2);
     resetGame();
     const player1 = players[0];
     const player2 = players[1];
     currentPlayer = player1;
-    currentPlayer = randomIndex === 0 ? player1 : player2;
+
     io.to(player1).emit("gameStart", { role: "X" });
     io.to(player2).emit("gameStart", { role: "O" });
   }
