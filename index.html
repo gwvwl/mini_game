@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Tic Tac Toe</title>
+    <!-- <link rel="stylesheet" href="/public/style.css" /> -->
+    <style>
+      .container {
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: repeat(3, 50px);
+        grid-template-rows: repeat(3, 50px);
+        gap: 5px;
+      }
+
+      .cell {
+        width: 50px;
+        height: 50px;
+        border: 1px solid black;
+        text-align: center;
+        line-height: 50px;
+        font-size: 24px;
+        cursor: pointer;
+      }
+      .status {
+        margin-top: 15px;
+      }
+      .cell.active {
+        background-color: #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="board">
+        <!-- Game board will be generated dynamically here -->
+      </div>
+      <div class="status">Waiting for players...</div>
+      <button class="reset-btn" style="display: none">Reset Game</button>
+    </div>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.dev.js"
+      integrity="sha256-OgiHfllOBEOiWQ2OcBsDncRG2k7QBW9Rs1dB7MH2N2s="
+      crossorigin="anonymous"
+    ></script>
+    <script src="js/script.js"></script>
+  </body>
+</html>
