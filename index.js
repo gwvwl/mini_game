@@ -39,12 +39,11 @@ const createSession = () => {
 // Маршрут для главной страницы
 app.get("/", (req, res) => {
   const sessionId = createSession(); // Создаем новую сессию
-  res.redirect(`/join-session?sessionId`); // Перенаправляем на страницу присоединения с идентификатором сессии
+  res.redirect(`/join-session?sessionId=${sessionId}`); // Перенаправляем на страницу присоединения с идентификатором сессии
 });
 
 // Маршрут для присоединения к существующей сессии
 app.get("/join-session", (req, res) => {
-  const sessionId = req.query.sessionId;
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
