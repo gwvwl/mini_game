@@ -1,16 +1,37 @@
 document.addEventListener("DOMContentLoaded", () => {
   const socket = io.connect();
 
+  // Функция для получения идентификатора сессии из URL
+  const getSessionIdFromUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get("sessionId");
+  };
+
+  // Функция для присоединения к сессии
+  const joinSession = () => {
+    const sessionId = getSessionIdFromUrl();
+    if (sessionId) {
+      socket.emit("joinSession", sessionId);
+    } else {
+      console.error("Session ID not found in URL");
+    }
+  };
+
+  // Вызываем функцию присоединения к сессии при загрузке страницы
+  joinSession();
+
+  // Обработчик события gameStart
   socket.on("gameStart", (data) => {
     const role = data.role;
     document.querySelector(".reset-btn").style.display = "none";
     document.querySelector(".status").textContent = `You are Player ${role}`;
 
-    // сделать рандом
     generateBoard(role === "X");
   });
 
+  // Обработчик события updateBoard
   socket.on("updateBoard", (data) => {
+    if (data.sessionId !== getSessionIdFromUrl()) return;
     updateBoard(data.board);
     const currentPlayer = data.currentPlayer;
     document.querySelector(".status").textContent = `Player ${
@@ -24,13 +45,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  // Обработчик нажатия кнопки reset
   document.querySelector(".reset-btn").addEventListener("click", () => {
     socket.emit("reset");
   });
+
+  // Обработчик события gameOver
   socket.on("gameOver", (data) => {
     if (data.winner) {
       document.querySelector(".reset-btn").style.display = "block";
-
       updateBoard(data.board);
       document.querySelectorAll(".cell").forEach((cell) => {
         cell.classList.remove("active");
@@ -46,6 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Генерация игровой доски
   const generateBoard = (isPlayerTurn) => {
     const board = document.querySelector(".board");
     board.innerHTML = "";
@@ -60,12 +84,11 @@ document.addEventListener("DOMContentLoaded", () => {
           cell.classList.add("active");
         }
         board.appendChild(cell);
-        // Добавляем пробел после каждой ячейки
         board.appendChild(document.createTextNode(" "));
       }
     }
 
-    // Добавляем обработчик событий для клика на ячейках
+    // Добавляем обработчик клика для каждой ячейки
     document.querySelectorAll(".cell").forEach((cell) => {
       cell.addEventListener("click", () => {
         if (cell.classList.contains("active")) {
@@ -78,6 +101,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
+  // Обновление игровой доски
   const updateBoard = (boardState) => {
     const cells = document.querySelectorAll(".cell");
     cells.forEach((cell, index) => {

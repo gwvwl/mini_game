@@ -2,6 +2,7 @@ const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
 const path = require("path");
+const { v4: uuidv4 } = require("uuid");
 
 const app = express();
 const server = http.createServer(app);
@@ -11,23 +12,53 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
-
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-let players = [];
-let currentPlayer = null;
-let board = [
-  ["", "", ""],
-  ["", "", ""],
-  ["", "", ""],
-];
+let sessions = {};
 
-const checkWinner = () => {
+const generateSessionId = () => {
+  return uuidv4();
+};
+
+const createSession = () => {
+  const sessionId = generateSessionId();
+  sessions[sessionId] = {
+    players: [],
+    currentPlayer: null,
+    board: [
+      ["", "", ""],
+      ["", "", ""],
+      ["", "", ""],
+    ],
+  };
+
+  return sessionId;
+};
+// Маршрут для главной страницы
+app.get("/", (req, res) => {
+  const sessionId = createSession(); // Создаем новую сессию
+  res.redirect(`/join-session?sessionId=${sessionId}`); // Перенаправляем на страницу присоединения с идентификатором сессии
+});
+
+// Маршрут для присоединения к существующей сессии
+app.get("/join-session", (req, res) => {
+  const sessionId = req.query.sessionId;
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+const resetGame = (sessionId, player) => {
+  const session = sessions[sessionId];
+  session.currentPlayer = player;
+  session.board = [
+    ["", "", ""],
+    ["", "", ""],
+    ["", "", ""],
+  ];
+};
+
+const checkWinner = (board) => {
   // Check rows
   for (let i = 0; i < 3; i++) {
     if (
@@ -70,60 +101,86 @@ const checkWinner = () => {
   return null;
 };
 
-const resetGame = () => {
-  currentPlayer = players[0];
-  board = [
-    ["", "", ""],
-    ["", "", ""],
-    ["", "", ""],
-  ];
-};
-
 io.on("connection", (socket) => {
   console.log("New player connected");
 
-  if (players.length < 2) {
-    players.push(socket.id);
-  }
+  socket.on("joinSession", (sessionId) => {
+    const session = sessions[sessionId];
+    if (!session) {
+      console.error("Session not found");
+      return;
+    }
 
-  if (players.length === 2) {
-    resetGame();
-    const player1 = players[0];
-    const player2 = players[1];
-    currentPlayer = player1;
-
-    io.to(player1).emit("gameStart", { role: "X" });
-    io.to(player2).emit("gameStart", { role: "O" });
-  }
+    const players = session.players;
+    if (players.length < 2) {
+      players.push(socket.id);
+      if (players.length === 2) {
+        resetGame(sessionId, players[0]);
+        const player1 = players[0];
+        const player2 = players[1];
+        session.currentPlayer = player1;
+        io.to(player1).emit("gameStart", { role: "X" });
+        io.to(player2).emit("gameStart", { role: "O" });
+      }
+    } else {
+      console.error("Session is full");
+    }
+  });
 
   socket.on("move", (data) => {
+    const sessionId = Object.keys(sessions).find(
+      (key) => sessions[key].players.indexOf(socket.id) !== -1
+    );
+
+    if (!sessionId) {
+      console.error("Session not found");
+      return;
+    }
+
+    const session = sessions[sessionId];
+    console.log("sessionId", sessionId, "sessions", sessions);
+    const currentPlayer = session.currentPlayer;
     if (socket.id !== currentPlayer) {
       return;
     }
 
     const { row, col } = data;
+    const board = session.board;
     if (board[row][col] === "") {
-      board[row][col] = socket.id === players[0] ? "X" : "O";
-      const winner = checkWinner();
+      board[row][col] = socket.id === session.players[0] ? "X" : "O";
+      const winner = checkWinner(board);
       if (winner) {
-        const player = socket.id === players[0] ? "X" : "O";
+        const player = socket.id === session.players[0] ? "X" : "O";
         io.emit("gameOver", { winner, role: player, board });
-        // resetGame();
       } else {
-        // После каждого хода меняем текущего игрока
-        currentPlayer = currentPlayer === players[0] ? players[1] : players[0];
-        io.emit("updateBoard", { board, currentPlayer });
+        session.currentPlayer =
+          currentPlayer === session.players[0]
+            ? session.players[1]
+            : session.players[0];
+        io.emit("updateBoard", {
+          board,
+          currentPlayer: session.currentPlayer,
+          sessionId,
+        });
       }
     }
   });
 
   socket.on("reset", () => {
-    resetGame();
-    //  меняем
-    players = [players[1], players[0]];
-    const player1 = players[0];
-    const player2 = players[1];
-    currentPlayer = player1; // Начинаем с первого игрока
+    const sessionId = Object.keys(sessions).find(
+      (key) => sessions[key].players.indexOf(socket.id) !== -1
+    );
+
+    if (!sessionId) {
+      console.error("Session not found");
+      return;
+    }
+
+    const session = sessions[sessionId];
+    resetGame(sessionId, session.players[0]);
+    const player1 = session.players[0];
+    const player2 = session.players[1];
+    session.currentPlayer = player1;
     io.to(player1).emit("gameStart", { role: "X" });
     io.to(player2).emit("gameStart", { role: "O" });
     io.emit("gameReset");
@@ -131,9 +188,12 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("Player disconnected");
-    players = players.filter((player) => player !== socket.id);
-    // Если игрок отключается во время игры, завершаем игру
-    io.emit("gameOver", { winner: false });
-    resetGame();
+    const sessionId = Object.keys(sessions).find(
+      (key) => sessions[key].players.indexOf(socket.id) !== -1
+    );
+
+    if (sessionId) {
+      delete sessions[sessionId];
+    }
   });
 });
