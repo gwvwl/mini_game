@@ -147,6 +147,7 @@ io.on("connection", (socket) => {
       const index = sessions[sessionId].players.indexOf(socket.id);
       if (index !== -1) {
         sessions[sessionId].players.splice(index, 1);
+
         // if (sessions[sessionId].players.length === 0) {
         //   delete sessions[sessionId];
         // }
