@@ -130,14 +130,28 @@ io.on("connection", (socket) => {
     io.emit("gameReset");
   });
 
+  //   socket.on("disconnect", () => {
+  //     console.log("Player disconnected");
+  //     const sessionId = Object.keys(sessions).find(
+  //       (key) => sessions[key].players.indexOf(socket.id) !== -1
+  //     );
+
+  //     if (sessionId) {
+  //       delete sessions[sessionId];
+  //     }
+  //   });
+
   socket.on("disconnect", () => {
     console.log("Player disconnected");
-    const sessionId = Object.keys(sessions).find(
-      (key) => sessions[key].players.indexOf(socket.id) !== -1
-    );
-
-    if (sessionId) {
-      delete sessions[sessionId];
+    for (const sessionId in sessions) {
+      const index = sessions[sessionId].players.indexOf(socket.id);
+      if (index !== -1) {
+        sessions[sessionId].players.splice(index, 1);
+        // if (sessions[sessionId].players.length === 0) {
+        //   delete sessions[sessionId];
+        // }
+        break;
+      }
     }
   });
 });
